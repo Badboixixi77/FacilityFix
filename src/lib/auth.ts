@@ -39,14 +39,11 @@ export async function getAuthUser(): Promise<{
     const cookieStore = cookies();
     const token = cookieStore.get(COOKIE_NAME)?.value;
 
-    console.log('getAuthUser - cookie token found:', !!token);
-
     if (!token) {
       return null;
     }
 
     const decoded = verifyToken(token);
-    console.log('getAuthUser - token verified:', decoded);
     if (!decoded || !decoded.userId) {
       return null;
     }
@@ -62,8 +59,6 @@ export async function getAuthUser(): Promise<{
         },
       },
     });
-
-    console.log('getAuthUser - user fetched from DB:', user ? user.email : 'NOT FOUND');
 
     if (!user) {
       return null;
@@ -106,11 +101,6 @@ export async function loginUser(payload: JWTPayload) {
   const token = signToken(payload);
   const cookieStore = cookies();
 
-  console.log('loginUser - setting cookie:', {
-    payload,
-    tokenLength: token.length,
-  });
-
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: true, // Always true to support iframe previews with HTTPS
@@ -119,5 +109,4 @@ export async function loginUser(payload: JWTPayload) {
     path: '/',
   });
 
-  console.log('loginUser - cookie is set in store');
 }
