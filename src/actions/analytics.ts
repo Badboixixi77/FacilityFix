@@ -17,16 +17,14 @@ export interface DashboardMetrics {
   requestsByPriority: { name: string; count: number; color: string }[];
   technicianWorkload: { name: string; count: number; specialty: string; email: string }[];
   recentActivities: { id: string; action: string; actorName: string; metadata: string | null; createdAt: Date; requestTitle: string; requestId: string }[];
+  // New enhanced analytics
+  requestsTrend: { date: string; created: number; resolved: number }[];
+  slaComplianceRate: number;
+  technicianPerformance: { name: string; resolved: number; avgTimeHours: number; efficiency: number }[];
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const session = await getAuthUser();
-  console.log('getDashboardMetrics - session details:', {
-    hasSession: !!session,
-    userId: session?.user?.id,
-    role: session?.user?.role,
-    memberOfOrgId: session?.memberOfOrgId,
-  });
   if (!session || !session.memberOfOrgId) {
     throw new Error('Unauthorized');
   }
@@ -170,6 +168,89 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     requestId: act.request.id,
   }));
 
+  // 8. Request trends over time (last 30 days)
+  const requestsTrend: { date: string; created: number; resolved: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    const created = await db.maintenanceRequest.count({
+      where: {
+        organizationId: orgId,
+        createdAt: {
+          gte: date,
+          lt: nextDate,
+        },
+      },
+    });
+    
+    const resolved = await db.maintenanceRequest.count({
+      where: {
+        organizationId: orgId,
+        resolvedAt: {
+          gte: date,
+          lt: nextDate,
+        },
+      },
+    });
+    
+    requestsTrend.push({ date: dateStr, created, resolved });
+  }
+
+  // 9. SLA Compliance Rate
+  const resolvedItemsForSLA = await db.maintenanceRequest.findMany({
+    where: {
+      organizationId: orgId,
+      resolvedAt: { not: null },
+    },
+    select: {
+      resolvedAt: true,
+      slaDueAt: true,
+    },
+  });
+  
+  let slaBreached = 0;
+  resolvedItemsForSLA.forEach((item) => {
+    if (item.resolvedAt && item.slaDueAt && item.resolvedAt > item.slaDueAt) {
+      slaBreached++;
+    }
+  });
+  
+  const slaComplianceRate = resolvedItemsForSLA.length > 0 
+    ? Math.round(((resolvedItemsForSLA.length - slaBreached) / resolvedItemsForSLA.length) * 100) 
+    : 100;
+
+  // 10. Enhanced Technician Performance
+  const technicianPerformance = technicians.map((tech) => {
+    const resolvedItems = tech.maintenanceRequests.filter((r) => r.resolvedAt !== null);
+    const resolved = resolvedItems.length;
+    
+    let avgTimeHours = 0;
+    if (resolved > 0) {
+      const totalTimeHours = resolvedItems.reduce((acc, curr) => {
+        const diffMs = curr.resolvedAt!.getTime() - curr.createdAt.getTime();
+        return acc + diffMs / (1000 * 60 * 60);
+      }, 0);
+      avgTimeHours = parseFloat((totalTimeHours / resolved).toFixed(1));
+    }
+    
+    // Calculate efficiency (resolved / assigned * 100)
+    const efficiency = tech.maintenanceRequests.length > 0 
+      ? Math.round((resolved / tech.maintenanceRequests.length) * 100) 
+      : 0;
+    
+    return {
+      name: tech.name,
+      resolved,
+      avgTimeHours,
+      efficiency,
+    };
+  }).sort((a, b) => b.efficiency - a.efficiency);
+
   return {
     totalRequests,
     openRequests,
@@ -183,6 +264,9 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     requestsByPriority,
     technicianWorkload,
     recentActivities,
+    requestsTrend,
+    slaComplianceRate,
+    technicianPerformance,
   };
 }
 

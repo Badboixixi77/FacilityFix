@@ -17,7 +17,10 @@ import {
   UserSquare2,
   Calendar,
   Layers,
-  Plus
+  Plus,
+  BarChart3,
+  Target,
+  Award
 } from 'lucide-react';
 
 export default async function DashboardPage() {
@@ -81,7 +84,7 @@ export default async function DashboardPage() {
         )}
 
         {/* Core Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {/* Stat 1: Total */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition">
             <div className="bg-blue-100 text-blue-600 p-3.5 rounded-2xl flex-shrink-0">
@@ -100,7 +103,7 @@ export default async function DashboardPage() {
               <Clock className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending Resolution</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
               <span className="text-2xl font-black text-slate-900 block">
                 {metrics.openRequests + metrics.assignedRequests + metrics.inProgressRequests}
               </span>
@@ -116,10 +119,10 @@ export default async function DashboardPage() {
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Resolved Fixed</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Resolved</span>
               <span className="text-2xl font-black text-slate-900 block">{metrics.resolvedRequests}</span>
               <span className="text-xs text-slate-500 font-medium">
-                Work completed successfully
+                Completed successfully
               </span>
             </div>
           </div>
@@ -130,22 +133,86 @@ export default async function DashboardPage() {
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg. Repair Time</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg. Time</span>
               <span className="text-2xl font-black text-slate-900 block">
-                {metrics.avgResolutionTimeHours} <span className="text-xs font-bold text-slate-500">hours</span>
+                {metrics.avgResolutionTimeHours} <span className="text-xs font-bold text-slate-500">h</span>
               </span>
-              <span className="text-xs text-slate-500 font-medium">From filing to completion</span>
+              <span className="text-xs text-slate-500 font-medium">Repair duration</span>
+            </div>
+          </div>
+
+          {/* Stat 5: SLA Compliance */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition">
+            <div className="bg-indigo-100 text-indigo-600 p-3.5 rounded-2xl flex-shrink-0">
+              <Target className="h-6 w-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">SLA Rate</span>
+              <span className="text-2xl font-black text-slate-900 block">
+                {metrics.slaComplianceRate} <span className="text-xs font-bold text-slate-500">%</span>
+              </span>
+              <span className="text-xs text-slate-500 font-medium">On-time completion</span>
             </div>
           </div>
         </div>
 
         {/* Visual Charts & Workload */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Chart block 1: Categories */}
+          {/* Chart block 1: Request Trends */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm lg:col-span-2">
             <h3 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-600" />
+              30-Day Request Trends
+            </h3>
+            
+            {metrics.requestsTrend.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+                No trend data available.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {metrics.requestsTrend.slice(-7).map((trend, idx) => {
+                  const maxCreated = Math.max(...metrics.requestsTrend.map(t => t.created), 1);
+                  const maxResolved = Math.max(...metrics.requestsTrend.map(t => t.resolved), 1);
+                  const createdPercent = Math.round((trend.created / maxCreated) * 100);
+                  const resolvedPercent = Math.round((trend.resolved / maxResolved) * 100);
+                  const date = new Date(trend.date);
+                  const displayDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  
+                  return (
+                    <div key={idx} className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold">
+                        <span className="text-slate-700">{displayDate}</span>
+                        <span className="text-slate-500">
+                          <span className="text-blue-600">{trend.created}</span> created • <span className="text-emerald-600">{trend.resolved}</span> resolved
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-blue-500 h-full rounded-full transition-all duration-300" 
+                            style={{ width: `${createdPercent}%` }}
+                          />
+                        </div>
+                        <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-emerald-500 h-full rounded-full transition-all duration-300" 
+                            style={{ width: `${resolvedPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Chart block 2: Categories */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <h3 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
               <Layers className="h-4 w-4 text-blue-600" />
-              Requests by Category
+              Top Categories
             </h3>
             
             {metrics.requestsByCategory.length === 0 ? (
@@ -153,26 +220,75 @@ export default async function DashboardPage() {
                 No categorical requests on record.
               </div>
             ) : (
-              <div className="space-y-4">
-                {metrics.requestsByCategory.map((cat, idx) => {
+              <div className="space-y-3">
+                {metrics.requestsByCategory.slice(0, 5).map((cat, idx) => {
                   const maxCount = Math.max(...metrics.requestsByCategory.map(c => c.count), 1);
                   const percentage = Math.round((cat.count / maxCount) * 100);
                   
                   return (
-                    <div key={idx} className="space-y-1.5">
+                    <div key={idx} className="space-y-1">
                       <div className="flex justify-between text-xs font-bold">
-                        <span className="text-slate-700">{cat.name}</span>
-                        <span className="text-slate-500">{cat.count} requests</span>
+                        <span className="text-slate-700 truncate">{cat.name}</span>
+                        <span className="text-slate-500">{cat.count}</span>
                       </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div 
-                          className="bg-blue-600 h-full rounded-full transition-all duration-550" 
+                          className="bg-blue-600 h-full rounded-full transition-all duration-300" 
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Enhanced Analytics Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Enhanced Technician Performance */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <h3 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
+              <Award className="h-4 w-4 text-amber-500" />
+              Technician Performance Leaderboard
+            </h3>
+
+            {metrics.technicianPerformance.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+                No technician performance data available.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {metrics.technicianPerformance.slice(0, 5).map((tech, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
+                        idx === 0 ? 'bg-amber-100 text-amber-700' :
+                        idx === 1 ? 'bg-slate-200 text-slate-700' :
+                        idx === 2 ? 'bg-orange-100 text-orange-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs text-slate-900 block">{tech.name}</span>
+                        <span className="text-[10px] text-slate-500">
+                          {tech.resolved} resolved • {tech.avgTimeHours}h avg
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
+                        tech.efficiency >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                        tech.efficiency >= 60 ? 'bg-blue-100 text-blue-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {tech.efficiency}% efficiency
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -230,94 +346,59 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Bottom Section: Recent Activity & Technician Workload */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Active Workload List */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <h3 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
-              <UserSquare2 className="h-4 w-4 text-indigo-500" />
-              Technician Active Workload
-            </h3>
+        {/* Bottom Section: Activity Timeline */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <h3 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-emerald-500 animate-pulse" />
+            Live Activity Timeline
+          </h3>
 
-            {metrics.technicianWorkload.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs font-semibold">
-                No technicians registered.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {metrics.technicianWorkload.map((tech, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                    <div className="truncate">
-                      <span className="font-bold text-xs text-slate-900 block truncate">{tech.name}</span>
-                      <span className="text-[10px] text-slate-400 block">{tech.specialty}</span>
-                    </div>
-                    <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${
-                      tech.count > 2 
-                        ? 'bg-amber-50 border-amber-200 text-amber-700' 
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                    }`}>
-                      {tech.count} active
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Activity Logs */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm lg:col-span-2">
-            <h3 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-emerald-500 animate-pulse" />
-              Live Activity Timeline
-            </h3>
-
-            {metrics.recentActivities.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs font-semibold">
-                No system activity logs yet.
-              </div>
-            ) : (
-              <div className="flow-root">
-                <ul className="-mb-8">
-                  {metrics.recentActivities.map((act, actIdx) => (
-                    <li key={act.id}>
-                      <div className="relative pb-8">
-                        {actIdx !== metrics.recentActivities.length - 1 ? (
-                          <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-slate-200" aria-hidden="true" />
-                        ) : null}
-                        <div className="relative flex space-x-3">
+          {metrics.recentActivities.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+              No system activity logs yet.
+            </div>
+          ) : (
+            <div className="flow-root">
+              <ul className="-mb-8">
+                {metrics.recentActivities.map((act, actIdx) => (
+                  <li key={act.id}>
+                    <div className="relative pb-8">
+                      {actIdx !== metrics.recentActivities.length - 1 ? (
+                        <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-slate-200" aria-hidden="true" />
+                      ) : null}
+                      <div className="relative flex space-x-3">
+                        <div>
+                          <span className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500">
+                            <Calendar className="h-4 w-4" />
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
                           <div>
-                            <span className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500">
-                              <Calendar className="h-4 w-4" />
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0 pt-1.5 flex justify-between space-x-4">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-800">
-                                <span className="font-black text-slate-950">{act.actorName}</span>{' '}
-                                {act.action.toLowerCase().replace('_', ' ')}{' '}
-                                on{' '}
-                                <Link href={`/requests/${act.requestId}`} className="font-bold text-blue-600 hover:text-blue-700 hover:underline">
-                                  {act.requestTitle}
-                                </Link>
+                            <p className="text-xs font-semibold text-slate-800">
+                              <span className="font-black text-slate-950">{act.actorName}</span>{' '}
+                              {act.action.toLowerCase().replace('_', ' ')}{' '}
+                              on{' '}
+                              <Link href={`/requests/${act.requestId}`} className="font-bold text-blue-600 hover:text-blue-700 hover:underline">
+                                {act.requestTitle}
+                              </Link>
+                            </p>
+                            {act.metadata && (
+                              <p className="text-[11px] text-slate-500 italic mt-0.5 font-medium">
+                                {act.metadata}
                               </p>
-                              {act.metadata && (
-                                <p className="text-[11px] text-slate-500 italic mt-0.5 font-medium">
-                                  {act.metadata}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right text-[10px] font-semibold text-slate-400 whitespace-nowrap">
-                              {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
+                            )}
+                          </div>
+                          <div className="text-right text-[10px] font-semibold text-slate-400 whitespace-nowrap">
+                            {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>
